@@ -1,0 +1,1457 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Военный анализатор карты</title>
+    <style>
+        :root {
+            --dark-blue: #1a365d;
+            --medium-blue: #2a4a7f;
+            --light-blue: #3c6ab8;
+            --dark-orange: #d35400;
+            --medium-orange: #e67e22;
+            --light-orange: #f39c12;
+            --light-color: #ecf0f1;
+            --dark-color: #2c3e50;
+            --success-color: #27ae60;
+            --danger-color: #e74c3c;
+            --warning-color: #f39c12;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, var(--dark-blue) 0%, var(--dark-color) 100%);
+            color: var(--light-color);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        header {
+            background: linear-gradient(to right, var(--medium-blue), var(--light-blue));
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        h1 {
+            font-size: 28px;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+        }
+        
+        .main-content {
+            display: flex;
+            gap: 20px;
+        }
+        
+        .map-container {
+            flex: 3;
+            position: relative;
+            background-color: var(--medium-blue);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+            min-height: 600px;
+        }
+        
+        #map-image {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+        
+        .controls {
+            flex: 1;
+            background: linear-gradient(to bottom, var(--medium-blue), var(--dark-blue));
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .section-title {
+            font-size: 18px;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--light-orange);
+        }
+        
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 4px;
+            background: linear-gradient(to bottom, var(--light-blue), var(--medium-blue));
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+        
+        .btn:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+        }
+        
+        .btn-attack {
+            background: linear-gradient(to bottom, var(--light-orange), var(--dark-orange));
+        }
+        
+        .btn-interceptor {
+            background: linear-gradient(to bottom, var(--danger-color), #c0392b);
+        }
+        
+        .btn-db {
+            background: linear-gradient(to bottom, var(--success-color), #27ae60);
+        }
+        
+        .btn-auth {
+            background: linear-gradient(to bottom, var(--warning-color), #e67e22);
+        }
+        
+        .country {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            transition: transform 0.3s;
+            border: 2px solid transparent;
+            z-index: 10;
+        }
+        
+        .country:hover {
+            transform: scale(1.1);
+            border-color: var(--light-orange);
+        }
+        
+        .country-flag {
+            width: 80%;
+            height: 80%;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+        
+        .target {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+            font-size: 24px;
+            z-index: 5;
+        }
+        
+        .target-bunker {
+            background-color: #8c7b6b;
+        }
+        
+        .target-command {
+            background-color: var(--medium-blue);
+        }
+        
+        .target-warehouse {
+            background-color: var(--light-orange);
+        }
+        
+        .target-airfield {
+            background-color: var(--success-color);
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background: linear-gradient(to bottom, var(--medium-blue), var(--dark-blue));
+            padding: 25px;
+            border-radius: 8px;
+            width: 400px;
+            max-width: 90%;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--light-blue);
+        }
+        
+        .modal-title {
+            font-size: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+            color: var(--light-orange);
+        }
+        
+        .weapon-option {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            margin: 10px 0;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .weapon-option:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+        
+        .weapon-icon {
+            font-size: 24px;
+            margin-right: 15px;
+        }
+        
+        .projectile {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            z-index: 100;
+            transition: left 0.5s linear, top 0.5s linear;
+        }
+        
+        .missile {
+            color: #e74c3c;
+            font-size: 30px;
+        }
+        
+        .drone {
+            color: #7f8c8d;
+            font-size: 30px;
+        }
+        
+        .health-bar {
+            position: absolute;
+            bottom: -10px;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background-color: #555;
+            border-radius: 2px;
+        }
+        
+        .health-fill {
+            height: 100%;
+            background-color: var(--success-color);
+            border-radius: 2px;
+            width: 100%;
+        }
+        
+        .log-container {
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            background-color: rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border-radius: 4px;
+            flex-grow: 1;
+        }
+        
+        .log-entry {
+            padding: 5px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 14px;
+        }
+        
+        .log-time {
+            color: var(--light-orange);
+            margin-right: 5px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid var(--light-blue);
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        
+        .trail {
+            position: absolute;
+            background: black;
+            height: 1px;
+            transform-origin: 0 0;
+            z-index: 4;
+            border-top: 1px dashed black;
+        }
+        
+        .country-name {
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 10px;
+            white-space: nowrap;
+            color: white;
+            text-shadow: 1px 1px 2px black;
+        }
+        
+        .target-name {
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 10px;
+            white-space: nowrap;
+            color: white;
+            text-shadow: 1px 1px 2px black;
+        }
+        
+        .instructions {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.6);
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 14px;
+            max-width: 250px;
+            z-index: 20;
+            display: none;
+        }
+        
+        .player-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .player-flag {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        
+        .auth-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Анализатор военных действий на карте</h1>
+            <div id="current-mode">Текущий режим: Выбор</div>
+        </header>
+        
+        <div class="main-content">
+            <div class="map-container" id="map-container">
+                <div class="instructions" id="instructions"></div>
+                <img id="map-image" src="" alt="Военная карта">
+            </div>
+            
+            <div class="controls">
+                <div class="player-info">
+                    <img id="player-flag" class="player-flag" src="" alt="Флаг игрока">
+                    <span id="player-name">Гость</span>
+                </div>
+                
+                <div id="auth-buttons" class="auth-container">
+                    <button class="btn btn-auth" id="btn-register">Регистрация</button>
+                    <button class="btn btn-auth" id="btn-login">Вход</button>
+                </div>
+                
+                <div id="game-controls" style="display: none;">
+                    <h2 class="section-title">Управление</h2>
+                    <button class="btn" id="btn-add-country">Добавить страну</button>
+                    <button class="btn" id="btn-add-target">Добавить цель</button>
+                    <button class="btn btn-attack" id="btn-attack-mode">Режим атаки</button>
+                    
+                    <h2 class="section-title" style="margin-top: 30px;">Действия</h2>
+                    <button class="btn btn-interceptor" id="btn-interceptor" disabled>Перехватчик (CD: <span id="interceptor-cd">0</span>s)</button>
+                    
+                    <h2 class="section-title" style="margin-top: 30px;">База данных</h2>
+                    <button class="btn btn-db" id="btn-save-db">Сохранить в БД</button>
+                    <button class="btn btn-db" id="btn-load-db">Загрузить из БД</button>
+                    <div class="loading" id="db-loading">Загрузка...</div>
+                    
+                    <h2 class="section-title" style="margin-top: 30px;">Журнал событий</h2>
+                    <div class="log-container" id="log-container">
+                        <!-- Журнал будет заполняться динамически -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Модальное окно выбора оружия -->
+    <div class="modal" id="weapon-modal">
+        <div class="modal-content">
+            <h2 class="modal-title">Выбор оружия для атаки</h2>
+            
+            <div class="weapon-option" data-weapon="otrk">
+                <div class="weapon-icon">🚀</div>
+                <div>
+                    <strong>ОТРК</strong>
+                    <p>Быстрая ракета, легче сбить. Урон: до 500</p>
+                </div>
+            </div>
+            
+            <div class="weapon-option" data-weapon="cluster">
+                <div class="weapon-icon">💥</div>
+                <div>
+                    <strong>Кассетная</strong>
+                    <p>Наносит урон по площади. Урон: до 200</p>
+                </div>
+            </div>
+            
+            <div class="weapon-option" data-weapon="cruise">
+                <div class="weapon-icon">✈️</div>
+                <div>
+                    <strong>Крылатая</strong>
+                    <p>Труднее сбить, медленнее. Урон: до 500</p>
+                </div>
+            </div>
+            
+            <div class="weapon-option" data-weapon="drone">
+                <div class="weapon-icon">🛸</div>
+                <div>
+                    <strong>БПЛА</strong>
+                    <p>Взрывается при столкновении. Урон: до 500</p>
+                </div>
+            </div>
+            
+            <button class="btn" id="btn-cancel-attack" style="margin-top: 20px;">Отмена</button>
+        </div>
+    </div>
+
+    <!-- Модальное окно создания страны -->
+    <div class="modal" id="country-modal">
+        <div class="modal-content">
+            <h2 class="modal-title">Создание страны</h2>
+            
+            <div class="form-group">
+                <label for="country-name">Название страны (только русские буквы, макс. 256 символов)</label>
+                <input type="text" id="country-name" maxlength="256" pattern="[А-Яа-яЁё\s]+" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="country-flag">URL флага (jpg/png)</label>
+                <input type="text" id="country-flag" required>
+            </div>
+            
+            <button class="btn" id="btn-create-country">Создать</button>
+            <button class="btn" id="btn-cancel-country">Отмена</button>
+        </div>
+    </div>
+
+    <!-- Модальное окно создания цели -->
+    <div class="modal" id="target-modal">
+        <div class="modal-content">
+            <h2 class="modal-title">Создание цели</h2>
+            
+            <div class="form-group">
+                <label for="target-type">Тип цели</label>
+                <select id="target-type">
+                    <option value="bunker">Бункер</option>
+                    <option value="command">Командный центр</option>
+                    <option value="warehouse">Склад Боеприпасов</option>
+                    <option value="airfield">Аэродром</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="target-owner">Владелец (страна)</label>
+                <select id="target-owner">
+                    <!-- Будет заполнено динамически -->
+                </select>
+            </div>
+            
+            <button class="btn" id="btn-create-target">Создать</button>
+            <button class="btn" id="btn-cancel-target">Отмена</button>
+        </div>
+    </div>
+
+    <!-- Модальное окно регистрации -->
+    <div class="modal" id="register-modal">
+        <div class="modal-content">
+            <h2 class="modal-title">Регистрация</h2>
+            
+            <div class="form-group">
+                <label for="register-username">Имя пользователя</label>
+                <input type="text" id="register-username" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="register-password">Пароль</label>
+                <input type="password" id="register-password" required>
+            </div>
+            
+            <button class="btn" id="btn-register-submit">Зарегистрироваться</button>
+            <button class="btn" id="btn-cancel-register">Отмена</button>
+        </div>
+    </div>
+
+    <!-- Модальное окно входа -->
+    <div class="modal" id="login-modal">
+        <div class="modal-content">
+            <h2 class="modal-title">Вход</h2>
+            
+            <div class="form-group">
+                <label for="login-username">Имя пользователя</label>
+                <input type="text" id="login-username" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="login-password">Пароль</label>
+                <input type="password" id="login-password" required>
+            </div>
+            
+            <button class="btn" id="btn-login-submit">Войти</button>
+            <button class="btn" id="btn-cancel-login">Отмена</button>
+        </div>
+    </div>
+
+    <script>
+        // Конфигурация - здесь вы можете изменить настройки
+        const CONFIG = {
+            mapImage: 'map.jpg', // ЗАМЕНИТЕ на ваше изображение карты
+            missileSound: 'rocket.mp3', // ЗАМЕНИТЕ на ваш звук ракеты
+            droneSound: 'drone.mp3', // ЗАМЕНИТЕ на ваш звук БПЛА
+            explosionSound: 'bomb.mp3', // ЗАМЕНИТЕ на ваш звук взрыва
+            interceptorSound: 'bomb.mp3', // ЗАМЕНИТЕ на ваш звук перехватчика
+            apiUrl: 'api.php' // PHP-скрипт для работы с БД
+        };
+        
+        // Состояние приложения
+        const state = {
+            countries: [],
+            targets: [],
+            projectiles: [],
+            attackMode: false,
+            addCountryMode: false,
+            addTargetMode: false,
+            selectedTarget: null,
+            selectedCountry: null,
+            interceptorCooldown: 0,
+            lastLogTime: new Date(),
+            currentPlayer: null // Текущий игрок
+        };
+        
+        // Элементы DOM
+        const mapContainer = document.getElementById('map-container');
+        const mapImage = document.getElementById('map-image');
+        const weaponModal = document.getElementById('weapon-modal');
+        const countryModal = document.getElementById('country-modal');
+        const targetModal = document.getElementById('target-modal');
+        const registerModal = document.getElementById('register-modal');
+        const loginModal = document.getElementById('login-modal');
+        const logContainer = document.getElementById('log-container');
+        const interceptorBtn = document.getElementById('btn-interceptor');
+        const interceptorCdSpan = document.getElementById('interceptor-cd');
+        const currentMode = document.getElementById('current-mode');
+        const instructions = document.getElementById('instructions');
+        const targetOwnerSelect = document.getElementById('target-owner');
+        const playerFlag = document.getElementById('player-flag');
+        const playerName = document.getElementById('player-name');
+        const authButtons = document.getElementById('auth-buttons');
+        const gameControls = document.getElementById('game-controls');
+        const dbLoading = document.getElementById('db-loading');
+        
+        // Инициализация
+        function init() {
+            // Загрузка карты
+            mapImage.src = CONFIG.mapImage;
+            
+            // Обработчики событий
+            document.getElementById('btn-add-country').addEventListener('click', enableAddCountryMode);
+            document.getElementById('btn-add-target').addEventListener('click', enableAddTargetMode);
+            document.getElementById('btn-attack-mode').addEventListener('click', toggleAttackMode);
+            document.getElementById('btn-cancel-attack').addEventListener('click', closeWeaponModal);
+            document.getElementById('btn-create-country').addEventListener('click', createCountry);
+            document.getElementById('btn-cancel-country').addEventListener('click', closeCountryModal);
+            document.getElementById('btn-create-target').addEventListener('click', createTarget);
+            document.getElementById('btn-cancel-target').addEventListener('click', closeTargetModal);
+            document.getElementById('btn-save-db').addEventListener('click', saveToDatabase);
+            document.getElementById('btn-load-db').addEventListener('click', loadFromDatabase);
+            document.getElementById('btn-register').addEventListener('click', showRegisterModal);
+            document.getElementById('btn-login').addEventListener('click', showLoginModal);
+            document.getElementById('btn-register-submit').addEventListener('click', registerUser);
+            document.getElementById('btn-login-submit').addEventListener('click', loginUser);
+            document.getElementById('btn-cancel-register').addEventListener('click', closeRegisterModal);
+            document.getElementById('btn-cancel-login').addEventListener('click', closeLoginModal);
+            interceptorBtn.addEventListener('click', activateInterceptor);
+            
+            // Обработчики для выбора оружия
+            document.querySelectorAll('.weapon-option').forEach(option => {
+                option.addEventListener('click', function() {
+                    launchAttack(this.dataset.weapon);
+                });
+            });
+            
+            // Обработчик клика по карте
+            mapContainer.addEventListener('click', handleMapClick);
+            
+            // Обновление cooldown каждую секунду
+            setInterval(updateCooldowns, 1000);
+            
+            updateModeDisplay();
+            
+            // Проверяем, есть ли сохраненный пользователь
+            const savedUser = localStorage.getItem('currentUser');
+            if (savedUser) {
+                state.currentPlayer = JSON.parse(savedUser);
+                updatePlayerInfo();
+                authButtons.style.display = 'none';
+                gameControls.style.display = 'block';
+            }
+        }
+        
+        // Функция для отправки запросов к API
+        async function apiRequest(endpoint, data = {}) {
+            try {
+                const response = await fetch(CONFIG.apiUrl + '?action=' + endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                return await response.json();
+            } catch (error) {
+                addLog('Ошибка подключения к серверу: ' + error.message);
+                return { success: false, error: error.message };
+            }
+        }
+        
+        // Обработка клика по карте
+        function handleMapClick(e) {
+            if (e.target !== mapImage && e.target !== mapContainer) return;
+            
+            const rect = mapContainer.getBoundingClientRect();
+            const x = ((e.clientX - rect.left) / rect.width) * 100;
+            const y = ((e.clientY - rect.top) / rect.height) * 100;
+            
+            if (state.addCountryMode) {
+                state.selectedCountry = { x, y };
+                countryModal.style.display = 'flex';
+                state.addCountryMode = false;
+                updateModeDisplay();
+                instructions.style.display = 'none';
+            } else if (state.addTargetMode) {
+                state.selectedTarget = { x, y };
+                updateTargetOwnerOptions();
+                targetModal.style.display = 'flex';
+                state.addTargetMode = false;
+                updateModeDisplay();
+                instructions.style.display = 'none';
+            }
+        }
+        
+        // Показать модальное окно регистрации
+        function showRegisterModal() {
+            registerModal.style.display = 'flex';
+        }
+        
+        // Закрыть модальное окно регистрации
+        function closeRegisterModal() {
+            registerModal.style.display = 'none';
+        }
+        
+        // Показать модальное окно входа
+        function showLoginModal() {
+            loginModal.style.display = 'flex';
+        }
+        
+        // Закрыть модальное окно входа
+        function closeLoginModal() {
+            loginModal.style.display = 'none';
+        }
+        
+        // Регистрация пользователя
+        async function registerUser() {
+            const username = document.getElementById('register-username').value;
+            const password = document.getElementById('register-password').value;
+            
+            if (!username || !password) {
+                alert('Заполните все поля!');
+                return;
+            }
+            
+            // Отправляем запрос на регистрацию
+            const result = await apiRequest('register', { username, password });
+            
+            if (result.success) {
+                // Сохраняем пользователя
+                state.currentPlayer = { username };
+                localStorage.setItem('currentUser', JSON.stringify(state.currentPlayer));
+                
+                // Обновляем интерфейс
+                updatePlayerInfo();
+                authButtons.style.display = 'none';
+                gameControls.style.display = 'block';
+                closeRegisterModal();
+                
+                addLog(`Пользователь ${username} зарегистрирован`);
+            } else {
+                alert('Ошибка регистрации: ' + result.error);
+            }
+        }
+        
+        // Вход пользователя
+        async function loginUser() {
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+            
+            if (!username || !password) {
+                alert('Заполните все поля!');
+                return;
+            }
+            
+            // Отправляем запрос на вход
+            const result = await apiRequest('login', { username, password });
+            
+            if (result.success) {
+                state.currentPlayer = { username };
+                localStorage.setItem('currentUser', JSON.stringify(state.currentPlayer));
+                
+                // Обновляем интерфейс
+                updatePlayerInfo();
+                authButtons.style.display = 'none';
+                gameControls.style.display = 'block';
+                closeLoginModal();
+                
+                addLog(`Пользователь ${username} вошел в систему`);
+            } else {
+                alert('Ошибка входа: ' + result.error);
+            }
+        }
+        
+        // Обновление информации об игроке
+        function updatePlayerInfo() {
+            if (state.currentPlayer) {
+                playerName.textContent = `Игрок: ${state.currentPlayer.username}`;
+            }
+        }
+        
+        // Включение режима добавления страны
+        function enableAddCountryMode() {
+            resetModes();
+            state.addCountryMode = true;
+            updateModeDisplay();
+            instructions.textContent = 'Кликните на карте, где должна находиться страна';
+            instructions.style.display = 'block';
+        }
+        
+        // Включение режима добавления цели
+        function enableAddTargetMode() {
+            if (state.countries.length === 0) {
+                alert('Сначала добавьте хотя бы одну страну!');
+                return;
+            }
+            
+            resetModes();
+            state.addTargetMode = true;
+            updateModeDisplay();
+            instructions.textContent = 'Кликните на карте, где должна находиться цель';
+            instructions.style.display = 'block';
+        }
+        
+        // Создание страны
+        async function createCountry() {
+            const name = document.getElementById('country-name').value;
+            const flag = document.getElementById('country-flag').value;
+            
+            // Проверка названия
+            if (!/^[А-Яа-яЁё\s]+$/.test(name)) {
+                alert('Название страны должно содержать только русские буквы!');
+                return;
+            }
+            
+            const country = {
+                id: Date.now(),
+                name: name,
+                x: state.selectedCountry.x,
+                y: state.selectedCountry.y,
+                flag: flag,
+                owner: state.currentPlayer.username
+            };
+            
+            // Сохраняем страну в БД
+            const result = await apiRequest('save_country', { country });
+            
+            if (result.success) {
+                state.countries.push(country);
+                renderCountry(country);
+                closeCountryModal();
+                addLog(`Создана страна: ${name}`);
+            } else {
+                alert('Ошибка сохранения страны: ' + result.error);
+            }
+        }
+        
+        // Обновление опций владельцев для целей
+        function updateTargetOwnerOptions() {
+            targetOwnerSelect.innerHTML = '';
+            state.countries.forEach(country => {
+                const option = document.createElement('option');
+                option.value = country.id;
+                option.textContent = country.name;
+                targetOwnerSelect.appendChild(option);
+            });
+        }
+        
+        // Создание цели
+        async function createTarget() {
+            const type = document.getElementById('target-type').value;
+            const ownerId = parseInt(document.getElementById('target-owner').value);
+            
+            const owner = state.countries.find(c => c.id === ownerId);
+            
+            const target = {
+                id: Date.now(),
+                type: type,
+                x: state.selectedTarget.x,
+                y: state.selectedTarget.y,
+                health: getMaxHealthByType(type),
+                maxHealth: getMaxHealthByType(type),
+                owner: ownerId,
+                ownerName: owner.name
+            };
+            
+            // Сохраняем цель в БД
+            const result = await apiRequest('save_target', { target });
+            
+            if (result.success) {
+                state.targets.push(target);
+                renderTarget(target);
+                closeTargetModal();
+                addLog(`Создана цель: ${getTargetNameByType(type)} для ${owner.name}`);
+            } else {
+                alert('Ошибка сохранения цели: ' + result.error);
+            }
+        }
+        
+        // Отображение страны на карте
+        function renderCountry(country) {
+            const countryEl = document.createElement('div');
+            countryEl.className = 'country';
+            countryEl.style.left = `${country.x}%`;
+            countryEl.style.top = `${country.y}%`;
+            countryEl.dataset.id = country.id;
+            countryEl.dataset.owner = country.owner;
+            
+            const flagImg = document.createElement('img');
+            flagImg.className = 'country-flag';
+            flagImg.src = country.flag;
+            flagImg.alt = `${country.name} flag`;
+            
+            const nameEl = document.createElement('div');
+            nameEl.className = 'country-name';
+            nameEl.textContent = country.name;
+            
+            countryEl.appendChild(flagImg);
+            countryEl.appendChild(nameEl);
+            mapContainer.appendChild(countryEl);
+            
+            // При клике на страну в режиме атаки
+            countryEl.addEventListener('click', function() {
+                if (state.attackMode) {
+                    // Нельзя атаковать свою страну
+                    if (country.owner === state.currentPlayer.username) {
+                        addLog('Нельзя атаковать свою страну!');
+                        return;
+                    }
+                    
+                    state.selectedTarget = country;
+                    weaponModal.style.display = 'flex';
+                }
+            });
+        }
+        
+        // Отображение цели на карте
+        function renderTarget(target) {
+            const targetEl = document.createElement('div');
+            targetEl.className = `target target-${target.type}`;
+            targetEl.style.left = `${target.x}%`;
+            targetEl.style.top = `${target.y}%`;
+            targetEl.dataset.id = target.id;
+            targetEl.dataset.owner = target.owner;
+            
+            // Иконка в зависимости от типа цели
+            targetEl.innerHTML = getIconByTargetType(target.type);
+            
+            // Health bar
+            const healthBar = document.createElement('div');
+            healthBar.className = 'health-bar';
+            
+            const healthFill = document.createElement('div');
+            healthFill.className = 'health-fill';
+            healthFill.style.width = `${(target.health / target.maxHealth) * 100}%`;
+            
+            healthBar.appendChild(healthFill);
+            targetEl.appendChild(healthBar);
+            
+            // Название цели
+            const nameEl = document.createElement('div');
+            nameEl.className = 'target-name';
+            nameEl.textContent = `${getTargetNameByType(target.type)} (${target.ownerName})`;
+            targetEl.appendChild(nameEl);
+            
+            mapContainer.appendChild(targetEl);
+            
+            // При клике на цель в режиме атаки
+            targetEl.addEventListener('click', function() {
+                if (state.attackMode) {
+                    state.selectedTarget = target;
+                    weaponModal.style.display = 'flex';
+                }
+            });
+        }
+        
+        // Получение максимального здоровья по типу цели
+        function getMaxHealthByType(type) {
+            const healthMap = {
+                'bunker': 1500,
+                'command': 2000,
+                'warehouse': 1500,
+                'airfield': 500
+            };
+            return healthMap[type] || 1000;
+        }
+        
+        // Получение имени цели по типу
+        function getTargetNameByType(type) {
+            const nameMap = {
+                'bunker': 'Бункер',
+                'command': 'Командный центр',
+                'warehouse': 'Склад боеприпасов',
+                'airfield': 'Аэродром'
+            };
+            return nameMap[type] || 'Неизвестная цель';
+        }
+        
+        // Получение иконки по типу цели
+        function getIconByTargetType(type) {
+            const iconMap = {
+                'bunker': '🏰',
+                'command': '🏢',
+                'warehouse': '📦',
+                'airfield': '✈️'
+            };
+            return iconMap[type] || '🎯';
+        }
+        
+        // Переключение режима атаки
+        function toggleAttackMode() {
+            // Проверяем, авторизован ли пользователь
+            if (!state.currentPlayer) {
+                alert('Сначала войдите в систему!');
+                return;
+            }
+            
+            resetModes();
+            state.attackMode = !state.attackMode;
+            const btn = document.getElementById('btn-attack-mode');
+            
+            if (state.attackMode) {
+                btn.classList.add('btn-attack');
+                btn.textContent = 'Режим атаки (активен)';
+                addLog('Режим атаки активирован');
+                instructions.textContent = 'Выберите цель для атаки';
+                instructions.style.display = 'block';
+            } else {
+                btn.classList.remove('btn-attack');
+                btn.textContent = 'Режим атаки';
+                instructions.style.display = 'none';
+            }
+            
+            updateModeDisplay();
+        }
+        
+        // Сброс всех режимов
+        function resetModes() {
+            state.attackMode = false;
+            state.addCountryMode = false;
+            state.addTargetMode = false;
+            
+            const btn = document.getElementById('btn-attack-mode');
+            btn.classList.remove('btn-attack');
+            btn.textContent = 'Режим атаки';
+            
+            instructions.style.display = 'none';
+            updateModeDisplay();
+        }
+        
+        // Закрытие модального окна выбора оружия
+        function closeWeaponModal() {
+            weaponModal.style.display = 'none';
+            state.selectedTarget = null;
+        }
+        
+        // Закрытие модального окна создания страны
+        function closeCountryModal() {
+            countryModal.style.display = 'none';
+            document.getElementById('country-name').value = '';
+            document.getElementById('country-flag').value = '';
+            state.selectedCountry = null;
+        }
+        
+        // Закрытие модального окна создания цели
+        function closeTargetModal() {
+            targetModal.style.display = 'none';
+            state.selectedTarget = null;
+        }
+        
+        // Запуск атаки
+        function launchAttack(weaponType) {
+            closeWeaponModal();
+            
+            // Проверяем, выбрана ли цель
+            if (!state.selectedTarget) {
+                addLog('Ошибка: цель не выбрана');
+                return;
+            }
+            
+            // Находим страну игрока
+            const playerCountry = state.countries.find(c => c.owner === state.currentPlayer.username);
+            if (!playerCountry) {
+                addLog('Ошибка: страна игрока не найдена');
+                return;
+            }
+            
+            // Определяем параметры атаки в зависимости от типа оружия
+            let damage, speed, icon, type, sound;
+            
+            switch(weaponType) {
+                case 'otrk':
+                    damage = Math.floor(Math.random() * 401) + 100; // 100-500
+                    speed = 3000; // мс для полного пути
+                    icon = '🚀';
+                    type = 'missile';
+                    sound = CONFIG.missileSound;
+                    break;
+                case 'cluster':
+                    damage = Math.floor(Math.random() * 101) + 100; // 100-200
+                    speed = 4000;
+                    icon = '💥';
+                    type = 'missile';
+                    sound = CONFIG.missileSound;
+                    break;
+                case 'cruise':
+                    damage = Math.floor(Math.random() * 401) + 100; // 100-500
+                    speed = 5000;
+                    icon = '✈️';
+                    type = 'missile';
+                    sound = CONFIG.missileSound;
+                    break;
+                case 'drone':
+                    damage = Math.floor(Math.random() * 401) + 100; // 100-500
+                    speed = 7000;
+                    icon = '🛸';
+                    type = 'drone';
+                    sound = CONFIG.droneSound;
+                    break;
+                default:
+                    return;
+            }
+            
+            // Воспроизведение звука атаки
+            playSound(sound);
+            
+            // Создание снаряда
+            const projectile = {
+                id: Date.now(),
+                type: type,
+                weapon: weaponType,
+                damage: damage,
+                speed: speed,
+                startX: playerCountry.x, // начальная позиция (от страны игрока)
+                startY: playerCountry.y,
+                target: state.selectedTarget,
+                icon: icon,
+                element: null,
+                trail: null,
+                owner: state.currentPlayer.username,
+                targetOwner: state.selectedTarget.owner || state.selectedTarget.ownerName
+            };
+            
+            state.projectiles.push(projectile);
+            renderProjectile(projectile);
+            
+            addLog(`Запущен ${getWeaponName(weaponType)} по цели`);
+        }
+        
+        // Отображение снаряда на карте
+        function renderProjectile(projectile) {
+            const projEl = document.createElement('div');
+            projEl.className = `projectile ${projectile.type}`;
+            projEl.style.left = `${projectile.startX}%`;
+            projEl.style.top = `${projectile.startY}%`;
+            projEl.innerHTML = projectile.icon;
+            projEl.dataset.id = projectile.id;
+            projEl.dataset.owner = projectile.owner;
+            
+            // Добавляем пунктирную линию
+            const trail = document.createElement('div');
+            trail.className = 'trail';
+            trail.style.left = `${projectile.startX}%`;
+            trail.style.top = `${projectile.startY}%`;
+            
+            const targetX = projectile.target.x;
+            const targetY = projectile.target.y;
+            
+            // Вычисляем длину и угол линии
+            const dx = targetX - projectile.startX;
+            const dy = targetY - projectile.startY;
+            const length = Math.sqrt(dx * dx + dy * dy);
+            const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+            
+            trail.style.width = `${length}%`;
+            trail.style.transform = `rotate(${angle}deg)`;
+            
+            mapContainer.appendChild(trail);
+            mapContainer.appendChild(projEl);
+            
+            projectile.element = projEl;
+            projectile.trail = trail;
+            
+            // Запуск движения снаряда
+            moveProjectile(projectile, targetX, targetY);
+        }
+        
+        // Движение снаряда к цели
+        function moveProjectile(projectile, targetX, targetY) {
+            const startTime = Date.now();
+            const duration = projectile.speed;
+            
+            function animate() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                if (progress < 1) {
+                    // Продолжаем анимацию
+                    const currentX = projectile.startX + (targetX - projectile.startX) * progress;
+                    const currentY = projectile.startY + (targetY - projectile.startY) * progress;
+                    
+                    projectile.element.style.left = `${currentX}%`;
+                    projectile.element.style.top = `${currentY}%`;
+                    
+                    requestAnimationFrame(animate);
+                } else {
+                    // Снаряд достиг цели
+                    hitTarget(projectile);
+                }
+            }
+            
+            animate();
+        }
+        
+        // Снаряд достиг цели
+        async function hitTarget(projectile) {
+            // Удаляем снаряд и его след
+            if (projectile.element && document.contains(projectile.element)) {
+                projectile.element.remove();
+            }
+            if (projectile.trail && document.contains(projectile.trail)) {
+                projectile.trail.remove();
+            }
+            
+            // Воспроизведение звука взрыва
+            playSound(CONFIG.explosionSound);
+            
+            // Наносим урон цели
+            let target;
+            if (projectile.target.type) {
+                // Это обычная цель
+                target = state.targets.find(t => t.id === projectile.target.id);
+            } else {
+                // Это страна
+                target = state.countries.find(c => c.id === projectile.target.id);
+            }
+            
+            if (target) {
+                target.health -= projectile.damage;
+                
+                // Обновляем health bar
+                let targetEl;
+                if (projectile.target.type) {
+                    targetEl = document.querySelector(`.target[data-id="${target.id}"]`);
+                } else {
+                    targetEl = document.querySelector(`.country[data-id="${target.id}"]`);
+                }
+                
+                if (targetEl) {
+                    const healthFill = targetEl.querySelector('.health-fill');
+                    if (healthFill) {
+                        const healthPercentage = (target.health / target.maxHealth) * 100;
+                        healthFill.style.width = `${healthPercentage}%`;
+                        
+                        // Меняем цвет в зависимости от здоровья
+                        if (healthPercentage < 30) {
+                            healthFill.style.backgroundColor = '#e74c3c';
+                        } else if (healthPercentage < 60) {
+                            healthFill.style.backgroundColor = '#f39c12';
+                        }
+                    }
+                }
+                
+                addLog(`${getWeaponName(projectile.weapon)} нанес урон ${projectile.damage} по цели`);
+                
+                // Сохраняем изменения в БД
+                if (projectile.target.type) {
+                    await apiRequest('update_target', { target });
+                } else {
+                    await apiRequest('update_country', { country: target });
+                }
+                
+                // Проверяем, уничтожена ли цель
+                if (target.health <= 0) {
+                    target.health = 0;
+                    if (targetEl) {
+                        targetEl.style.opacity = '0.5';
+                    }
+                    addLog(`Цель уничтожена!`);
+                }
+            }
+        }
+        
+        // Активация перехватчика
+        function activateInterceptor() {
+            if (state.interceptorCooldown > 0) return;
+            
+            // Устанавливаем cooldown
+            state.interceptorCooldown = 2;
+            interceptorBtn.disabled = true;
+            interceptorCdSpan.textContent = state.interceptorCooldown;
+            
+            // Воспроизведение звука перехватчика
+            playSound(CONFIG.interceptorSound);
+            
+            // Попытка сбить каждый снаряд с шансом 70%
+            let intercepted = false;
+            state.projectiles.forEach(projectile => {
+                // Можно сбивать только снаряды, направленные на цели, принадлежащие игроку
+                let isTargetOwnedByPlayer = false;
+                
+                if (projectile.target.type) {
+                    // Это обычная цель
+                    const target = state.targets.find(t => t.id === projectile.target.id);
+                    if (target) {
+                        const targetOwner = state.countries.find(c => c.id === target.owner);
+                        isTargetOwnedByPlayer = targetOwner && targetOwner.owner === state.currentPlayer.username;
+                    }
+                } else {
+                    // Это страна
+                    const target = state.countries.find(c => c.id === projectile.target.id);
+                    isTargetOwnedByPlayer = target && target.owner === state.currentPlayer.username;
+                }
+                
+                if (isTargetOwnedByPlayer && Math.random() < 0.7) {
+                    // Сбиваем снаряд
+                    if (projectile.element && document.contains(projectile.element)) {
+                        projectile.element.remove();
+                    }
+                    if (projectile.trail && document.contains(projectile.trail)) {
+                        projectile.trail.remove();
+                    }
+                    addLog(`Снаряд сбит перехватчиком!`);
+                    intercepted = true;
+                }
+            });
+            
+            if (intercepted) {
+                addLog(`Активирован перехватчик - снаряды сбиты!`);
+            } else {
+                addLog(`Активирован перехватчик - не удалось сбить снаряды`);
+            }
+        }
+        
+        // Обновление cooldown
+        function updateCooldowns() {
+            if (state.interceptorCooldown > 0) {
+                state.interceptorCooldown -= 1;
+                interceptorCdSpan.textContent = state.interceptorCooldown;
+                
+                if (state.interceptorCooldown <= 0) {
+                    interceptorBtn.disabled = false;
+                    interceptorCdSpan.textContent = '0';
+                }
+            }
+        }
+        
+        // Получение названия оружия по типу
+        function getWeaponName(weaponType) {
+            const nameMap = {
+                'otrk': 'ОТРК',
+                'cluster': 'Кассетная ракета',
+                'cruise': 'Крылатая ракета',
+                'drone': 'БПЛА'
+            };
+            return nameMap[weaponType] || 'Неизвестное оружие';
+        }
+        
+        // Воспроизведение звука
+        function playSound(soundFile) {
+            // ЗАМЕНИТЕ на вашу реализацию воспроизведения звука
+            console.log(`Playing sound: ${soundFile}`);
+            // Пример: new Audio(soundFile).play();
+        }
+        
+        // Добавление записи в журнал
+        function addLog(message) {
+            const now = new Date();
+            const hours = now.getHours().toString().padStart(2, '0');
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            const seconds = now.getSeconds().toString().padStart(2, '0');
+            const timeStr = `[${hours}:${minutes}:${seconds}]`;
+            
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            logEntry.innerHTML = `<span class="log-time">${timeStr}</span> ${message}`;
+            
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+            
+            state.lastLogTime = now;
+        }
+        
+        // Обновление отображения текущего режима
+        function updateModeDisplay() {
+            let modeText = 'Текущий режим: ';
+            
+            if (state.attackMode) {
+                modeText += 'Атака';
+            } else if (state.addCountryMode) {
+                modeText += 'Добавление страны';
+            } else if (state.addTargetMode) {
+                modeText += 'Добавление цели';
+            } else {
+                modeText += 'Выбор';
+            }
+            
+            currentMode.textContent = modeText;
+        }
+        
+        // Сохранение данных в базу данных
+        async function saveToDatabase() {
+            dbLoading.style.display = 'block';
+            addLog('Попытка сохранения данных в MySQL...');
+            
+            const result = await apiRequest('save_all', {
+                countries: state.countries,
+                targets: state.targets
+            });
+            
+            dbLoading.style.display = 'none';
+            
+            if (result.success) {
+                addLog('Данные успешно сохранены в MySQL');
+                alert('Данные успешно сохранены в MySQL!');
+            } else {
+                addLog('Ошибка сохранения данных: ' + result.error);
+                alert('Ошибка сохранения данных: ' + result.error);
+            }
+        }
+        
+        // Загрузка данных из базы данных
+        async function loadFromDatabase() {
+            dbLoading.style.display = 'block';
+            addLog('Попытка загрузки данных из MySQL...');
+            
+            const result = await apiRequest('load_all', {});
+            
+            dbLoading.style.display = 'none';
+            
+            if (result.success) {
+                // Очищаем карту
+                clearMap();
+                
+                // Загружаем данные
+                state.countries = result.countries || [];
+                state.targets = result.targets || [];
+                
+                // Отображаем данные
+                state.countries.forEach(country => renderCountry(country));
+                state.targets.forEach(target => renderTarget(target));
+                
+                addLog('Данные успешно загружены из MySQL');
+            } else {
+                addLog('Ошибка загрузки данных: ' + result.error);
+                alert('Ошибка загрузки данных: ' + result.error);
+            }
+        }
+        
+        // Очистка карты
+        function clearMap() {
+            // Удаляем все страны
+            document.querySelectorAll('.country').forEach(el => el.remove());
+            
+            // Удаляем все цели
+            document.querySelectorAll('.target').forEach(el => el.remove());
+            
+            // Удаляем все снаряды
+            document.querySelectorAll('.projectile').forEach(el => el.remove());
+            
+            // Удаляем все следы
+            document.querySelectorAll('.trail').forEach(el => el.remove());
+            
+            // Очищаем массивы состояний
+            state.countries = [];
+            state.targets = [];
+            state.projectiles = [];
+        }
+        
+        // Инициализация при загрузке
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
