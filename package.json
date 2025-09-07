@@ -1,0 +1,11 @@
+{
+  "name": "military-map-analyser",
+  "version": "1.0.0",
+  "description": "Military Map Analyser Application",
+  "scripts": {
+    "start": "echo 'This is a PHP application' && exit 0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
