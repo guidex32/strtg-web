@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: airtg-web
+    env: php
+    buildCommand: ""
+    startCommand: php -S 0.0.0.0:$PORT -t .
+    envVars:
+      - key: MYSQL_HOST
+        fromDatabase:
+          name: your-db-name
+          property: host
+      - key: MYSQL_USERNAME
+        fromDatabase:
+          name: your-db-name
+          property: user
+      - key: MYSQL_PASSWORD
+        fromDatabase:
+          name: your-db-name
+          property: password
+      - key: MYSQL_DATABASE
+        fromDatabase:
+          name: your-db-name
+          property: database
